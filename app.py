@@ -11,7 +11,7 @@ from seleniumbase import SB
 EMAIL        = os.environ.get("KATABUMP_EMAIL") or ""    # 登录邮箱
 PASSWORD     = os.environ.get("KATABUMP_PASSWORD") or "" # 账号密码
 TG_CHAT_ID   = os.environ.get("TG_CHAT_ID") or ""        # tg通知 chat id(可选)
-TG_BOT_TOKEN = os.environ.get("TG_BOT_TOKEN") or ""       # tg通知bot token(可选)
+TG_BOT_TOKEN = os.environ.get("TG_BOT_TOKEN") or ""      # tg通知bot token(可选)
 
 BASE_URL = "https://dashboard.katabump.com"  # 网站链接
 
@@ -25,7 +25,6 @@ def send_tg_message(status_icon, status_text, time_left=""):
     local_time = time.gmtime(time.time() + 8 * 3600)
     current_time_str = time.strftime("%Y-%m-%d %H:%M:%S", local_time)
 
-    # 按照要求的格式拼接消息
     # 邮箱脱敏：保留用户名前2位和后2位，中间用****代替
     if '@' in EMAIL:
         name, domain = EMAIL.split('@', 1)
@@ -93,32 +92,6 @@ _SOLVED_JS = """
 (function(){
     var i = document.querySelector('input[name="cf-turnstile-response"]');
     return !!(i && i.value && i.value.length > 20);
-})()
-"""
-
-_COORDS_JS = """
-(function(){
-    var iframes = document.querySelectorAll('iframe');
-    for (var i = 0; i < iframes.length; i++) {
-        var src = iframes[i].src || '';
-        if (src.includes('cloudflare') || src.includes('turnstile') || src.includes('challenges')) {
-            var r = iframes[i].getBoundingClientRect();
-            if (r.width > 0 && r.height > 0)
-                return {cx: Math.round(r.x + 30), cy: Math.round(r.y + r.height / 2)};
-        }
-    }
-    var inp = document.querySelector('input[name="cf-turnstile-response"]');
-    if (inp) {
-        var p = inp.parentElement;
-        for (var j = 0; j < 5; j++) {
-            if (!p) break;
-            var r = p.getBoundingClientRect();
-            if (r.width > 100 && r.height > 30)
-                return {cx: Math.round(r.x + 30), cy: Math.round(r.y + r.height / 2)};
-            p = p.parentElement;
-        }
-    }
-    return null;
 })()
 """
 
@@ -229,55 +202,42 @@ def _xdotool_click(x: int, y: int):
     except Exception:
         os.system(f"xdotool mousemove {x} {y} click 1 2>/dev/null")
 
-#  人机验证处理
-def _click_turnstile(sb):
-    try:
-        coords = sb.execute_script(_COORDS_JS)
-    except Exception as e:
-        print(f"⚠️ 获取 Turnstile 坐标失败: {e}")
-        return
-    if not coords:
-        print("⚠️ 无法定位 Turnstile 坐标")
-        return
-    try:
-        wi = sb.execute_script(_WININFO_JS)
-    except Exception:
-        wi = {"sx": 0, "sy": 0, "oh": 800, "ih": 768}
-        
-    bar = wi["oh"] - wi["ih"]
-    ax  = coords["cx"] + wi["sx"]
-    ay  = coords["cy"] + wi["sy"] + bar
-    print(f"🖱️ 点击验证框 Turnstile ({ax}, {ay})")
-    _xdotool_click(ax, ay)
-
+#  人机验证处理（使用 SeleniumBase 内置 uc_gui_click_captcha）
 def handle_turnstile(sb) -> bool:
     print("🔍 处理 Cloudflare Turnstile 验证...")
     time.sleep(2)
-    
+
+    # 检查是否已静默通过
     if sb.execute_script(_SOLVED_JS):
         print("✅ 已静默通过")
         return True
 
+    # 尝试展开 Turnstile（防止被父容器 overflow:hidden 裁剪）
     for _ in range(3):
         try: sb.execute_script(_EXPAND_JS)
         except Exception: pass
         time.sleep(0.5)
 
+    # 使用 SeleniumBase 内置 uc_gui_click_captcha 处理 Turnstile
+    # 该方法自动完成：检测验证码类型 → 定位 iframe → 计算坐标 → PyAutoGUI 平滑点击
     for attempt in range(6):
         if sb.execute_script(_SOLVED_JS):
-            print(f"✅ Turnstile 通过（第 {attempt + 1} 次尝试）")
+            print(f"✅ Turnstile 通过（第 {attempt} 次尝试）")
             return True
-        try: sb.execute_script(_EXPAND_JS)
-        except Exception: pass
-        time.sleep(0.3)
-        
-        _click_turnstile(sb)
-        
-        for _ in range(8):
+
+        print(f"🖱️ 第 {attempt + 1} 次调用 uc_gui_click_captcha...")
+        try:
+            sb.uc_gui_click_captcha()
+        except Exception as e:
+            print(f"⚠️ uc_gui_click_captcha 调用异常: {e}")
+
+        # 等待验证结果（最多 8 秒）
+        for _ in range(16):
             time.sleep(0.5)
             if sb.execute_script(_SOLVED_JS):
                 print(f"✅ Turnstile 通过（第 {attempt + 1} 次尝试）")
                 return True
+
         print(f"⚠️ 第 {attempt + 1} 次未通过，重试...")
 
     print("  ❌ Turnstile 6 次均失败")
@@ -286,7 +246,7 @@ def handle_turnstile(sb) -> bool:
 #  账户登录
 def login(sb) -> bool:
     print(f"🌐 打开登录页面: {BASE_URL}/auth/login")
-    sb.uc_open_with_reconnect(BASE_URL + "/auth/login", reconnect_time=5)
+    sb.uc_open_with_reconnect(BASE_URL + "/auth/login", reconnect_time=8)
     time.sleep(6)
 
     # 先等待 Cloudflare 验证通过（最多等 30 秒）
@@ -335,7 +295,17 @@ def login(sb) -> bool:
     js_fill_input(sb, 'input[name="password"]', PASSWORD)
     time.sleep(1)
 
-    if sb.execute_script(_EXISTS_JS):
+    # 等待 Turnstile 验证框出现（最多 10 秒）
+    print("⏳ 等待 Turnstile 验证框出现...")
+    ts_found = False
+    for i in range(10):
+        if sb.execute_script(_EXISTS_JS):
+            ts_found = True
+            print(f"✅ 检测到 Turnstile（{i+1}s）")
+            break
+        time.sleep(1)
+
+    if ts_found:
         if not handle_turnstile(sb):
             print("❌ 登录界面的 Turnstile 验证失败")
             sb.save_screenshot("login_turnstile_fail.png")
@@ -571,7 +541,7 @@ def _solve_altcha(sb) -> bool:
         except Exception:
             pass
 
-    print("  ❌ ALTCHA 5 轮均失败")
+    print("  ❌ ALTCHA 3 轮均失败")
     return False
 
 
@@ -651,12 +621,13 @@ def main():
         sb_kwargs["proxy"] = proxy_str
     else:
         print("🌐 未使用代理，直连访问")
-
+    
+    print("🚀 启动浏览器...")
     with SB(**sb_kwargs) as sb:
         # print("✅ 浏览器已启动")
         try:
             sb.open("https://api.ip.sb/ip")
-            print(f"🌐 当前出口IP: {sb.get_text('body')}")
+            print(f"📍  当前出口IP: {sb.get_text('body')}")
         except Exception:
             pass
 
