@@ -2,58 +2,78 @@ name: Katabump Auto Renew
 
 on:
   schedule:
-  - cron: '20 0 */4 * *'  # 每4天 UTC 0点20 (北京时间 8点20) 运行,根据服务到期时间自行修改
+    - cron: '20 0 * * *'  # 改为每天 UTC 0点20 (北京时间 8点20) 唤醒 Actions
   workflow_dispatch: # 允许手动触发
 
 jobs:
   Renew-Katabump:
     runs-on: ubuntu-latest
     permissions:
-      actions: write  
+      actions: write
       contents: read
-    
     steps:
-    - uses: actions/checkout@v6
-    - name: ⚙ 设置 Python
-      uses: actions/setup-python@v6
-      with:
-        python-version: '3.12'
+      - uses: actions/checkout@v6
+      - name: ⚙ 设置 Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+          
+      - name: 🛠️ 安装系统依赖和python依赖
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y xvfb x11-utils xdotool scrot fonts-noto-cjk
+          pip install seleniumbase requests
+          seleniumbase install chromedriver
+          
+      - name: ⚙ 设置代理 (sing-box)
+        continue-on-error: true
+        env:
+          NODE_LINK: ${{ secrets.NODE_LINK }}
+        run: |
+          bash <(wget -qO- https://main.ssss.nyc.mn/setup_proxy.sh)
+          
+      - name: 🚀 运行续期脚本
+        env:
+          KATABUMP_EMAIL: ${{ secrets.KATABUMP_EMAIL }}
+          KATABUMP_PASSWORD: ${{ secrets.KATABUMP_PASSWORD }}
+          TG_BOT_TOKEN: ${{ secrets.TG_BOT_TOKEN }}
+          TG_CHAT_ID: ${{ secrets.TG_CHAT_ID }}
+          # 👇 在这里填写你的起始续期日期 (格式：YYYY-MM-DD)
+          START_DATE: '2026-08-11' 
+        run: |
+          # 获取当前 UTC 日期
+          CURRENT_DATE=$(date -u +%Y-%m-%d)
+          echo "设定的起始日为: $START_DATE, 今天的 UTC 日期为: $CURRENT_DATE"
 
-    - name: 🛠️ 安装系统依赖和python依赖
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y xvfb x11-utils xdotool scrot fonts-noto-cjk
-        pip install seleniumbase requests
-        seleniumbase install chromedriver
+          # 转换为时间戳计算相差天数
+          START_TS=$(date -u -d "$START_DATE" +%s)
+          CURRENT_TS=$(date -u -d "$CURRENT_DATE" +%s)
+          DIFF_DAYS=$(( (CURRENT_TS - START_TS) / 86400 ))
 
-    - name: ⚙ 设置代理 (sing-box)
-      continue-on-error: true
-      env:
-        NODE_LINK: ${{ secrets.NODE_LINK }}
-      run: |
-        bash <(wget -qO- https://main.ssss.nyc.mn/setup_proxy.sh)
-
-    - name: 🚀 运行续期脚本
-      env:
-        KATABUMP_EMAIL: ${{ secrets.KATABUMP_EMAIL }}
-        KATABUMP_PASSWORD: ${{ secrets.KATABUMP_PASSWORD }}
-        TG_BOT_TOKEN: ${{ secrets.TG_BOT_TOKEN }}
-        TG_CHAT_ID: ${{ secrets.TG_CHAT_ID }}
-      run: |
-        xvfb-run --auto-servernum --server-args="-screen 0 1920x1080x24" \
-          python3 app.py
-        
-    - name: 🧹 清理旧的工作流运行记录
-      if: always()
-      env:
-        GH_TOKEN: ${{ github.token }}
-      run: |
-        runs=$(gh run list --workflow="${{ github.workflow }}" --limit=100 --json databaseId --jq '.[].databaseId')
-        count=0
-        for run_id in $runs; do
-          count=$((count + 1))
-          if [ $count -gt 1 ]; then
-            echo "删除运行记录: $run_id"
-            gh run delete $run_id || true
+          # 核心判断逻辑
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+              echo "检测到手动触发，无视日期规律，强制运行续期任务..."
+              xvfb-run --auto-servernum --server-args="-screen 0 1920x1080x24" python3 app.py
+          elif [ $DIFF_DAYS -lt 0 ]; then
+              echo "尚未到达设定的起始日期 ($START_DATE)，本次跳过。"
+          elif [ $((DIFF_DAYS % 4)) -eq 0 ]; then
+              echo "距离起始日已过 $DIFF_DAYS 天，符合 4 天一续规律！开始执行脚本..."
+              xvfb-run --auto-servernum --server-args="-screen 0 1920x1080x24" python3 app.py
+          else
+              echo "距离起始日已过 $DIFF_DAYS 天，不符合续期规律，本次安全跳过。"
           fi
-        done
+
+      - name: 🧹 清理旧的工作流运行记录
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          runs=$(gh run list --workflow="${{ github.workflow }}" --limit=100 --json databaseId --jq '.[].databaseId')
+          count=0
+          for run_id in $runs; do
+            count=$((count + 1))
+            if [ $count -gt 1 ]; then
+              echo "删除运行记录: $run_id"
+              gh run delete $run_id || true
+            fi
+          done
