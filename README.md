@@ -40,15 +40,14 @@
 ```
 例如网站续期信息如下：
 
-Service information           服务信息
+Service informationz-----------服务信息
 
-Renew period：Every 4 days    续期：每4天一次   
+Renew period：Every 4 days-----续期：每4天一次   
 
-Expiry：2026-08-12            到期：2026年8月12日
+Expiry：2026-08-12-------------到期：2026年8月12日
 
 
 那你的起始续期日就是：2026-08-11
-
 需提前一天续期
 
 💡 运行逻辑说明：
