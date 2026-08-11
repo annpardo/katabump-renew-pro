@@ -31,7 +31,7 @@
 
 为了让脚本能够精准匹配你的续期周期，请打开 `.github/workflows/renew.yml` 文件，找到 `START_DATE` 变量，将其修改为你明确知道的**下一次可续期日期**：
 
-yaml
+ '''yaml
       - name: 🚀 运行续期脚本
         env:
           # ... 其他环境变量
