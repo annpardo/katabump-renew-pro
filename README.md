@@ -42,6 +42,7 @@
 Service information           服务信息
 Renew period：Every 4 days    续期：每4天一次      
 Expiry：2026-08-15            到期：2026年8月15日
+
 那你的起始续期日就是：2026-08-14
 需提前一天续期
 
