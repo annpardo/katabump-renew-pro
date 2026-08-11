@@ -20,7 +20,7 @@
 ### 1. 配置 GitHub Secrets (仓库 Settings -> Secrets and variables -> Actions)
 
 | Secret 名称 | 是否必填 | 说明 |
-| :--- | :---: | :--- |
+| :--- | :--- | :--- |
 | `KATABUMP_EMAIL` | ✅ **必填** | 你的 Katabump 登录邮箱 |
 | `KATABUMP_PASSWORD` | ✅ **必填** | 你的 Katabump 登录密码 |
 | `NODE_LINK` | ❌ 可选 | 代理节点链接，用于绕过 CF 盾。建议使用稍微干净点的节点（如住宅代理）。不配置则使用直连。 |
@@ -42,18 +42,19 @@
 脚本每天 UTC 0:20 (北京时间 8:20) 自动唤醒。唤醒后会计算当前日期与 START_DATE 的相差天数。
 只有相差天数是 4 的倍数（如 0天, 4天, 8天...）时，才会真正执行续期任务；否则直接跳过。
 
-🌐 代理格式支持
-如果你配置了 NODE_LINK，请确认你在本地 v2rayN 等软件中测试该节点是可用的。
-目前支持以下代理协议的完整分享链接：
+### 代理格式（确认在v2rayN里使用正常的节点）
 
-VLESS: vless://uuid@server:port?security=reality&sni=...
-VMess: vmess://base64encoded...
-Trojan: trojan://password@server:port?sni=...
-tuic: tuic://uuid:password@server:port...
-anytls: anytls://uuid@server:port...
-hysteria2: hysteria2://base64@server:port...
-SOCKS5: socks5://user:pass@server:port 或 socks://user:pass@server:port
+`NODE_LINK` 支持以下任意一种代理协议的完整分享链接（不配置则直连）：
 
+- **VLESS**：`vless://uuid@server:port?security=reality&sni=...&type=ws&...`
+- **VMess**：`vmess://base64encoded...`
+- **Trojan**：`trojan://password@server:port?sni=...&type=ws&...`
+- **tuic**：`tuic://uuid:password@server:port...`
+- **anytls**：`anytls://uuid@server:port...`
+- **hysteria2**：`hysteria2://base64@server:port...`
+- **SOCKS5**：`socks5://user:pass@server:port` 或 `socks://user:pass@server:port`
+
+### 注意事项
 ⚠️ 注意事项
 节点纯净度：如果有 CF 盾拦截提示，极大概率是因为机房 IP 被风控，建议更换为干净的代理节点（如 B2proxy 住宅代理）。
 
