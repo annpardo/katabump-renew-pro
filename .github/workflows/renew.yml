@@ -2,7 +2,7 @@ name: Katabump Auto Renew
 
 on:
   schedule:
-  - cron: '20 0 */2 * *'  # 每2天 UTC 0点20 (北京时间 9点20) 运行,根据服务到期时间自行修改
+  - cron: '20 0 */4 * *'  # 每4天 UTC 0点20 (北京时间 8点20) 运行,根据服务到期时间自行修改
   workflow_dispatch: # 允许手动触发
 
 jobs:
