@@ -39,7 +39,7 @@ jobs:
           TG_BOT_TOKEN: ${{ secrets.TG_BOT_TOKEN }}
           TG_CHAT_ID: ${{ secrets.TG_CHAT_ID }}
           # 👇 在这里填写你的起始续期日期 (格式：YYYY-MM-DD)
-          START_DATE: '2026-08-14' 
+          START_DATE: '2026-08-10' 
         run: |
           # 获取当前 UTC 日期
           CURRENT_DATE=$(date -u +%Y-%m-%d)
