@@ -31,13 +31,13 @@
 
 为了让脚本能够精准匹配你的续期周期，请打开 `.github/workflows/renew.yml` 文件，找到 `START_DATE` 变量，将其修改为你明确知道的**下一次可续期日期**：
 
- '''yaml
+```yaml
       - name: 🚀 运行续期脚本
         env:
           # ... 其他环境变量
           # 👇 在这里填写你的起始续期日期 (格式：YYYY-MM-DD)
           START_DATE: '2026-08-11'  # <--- 请务必修改为你自己的续期日
-
+```
 例如网站续期信息如下：
 Service information           服务信息
 Renew period：Every 4 days    续期：每4天一次      
