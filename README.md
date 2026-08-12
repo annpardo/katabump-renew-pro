@@ -40,6 +40,8 @@
 ```
 例如网站续期信息如下：
 
+登录服务器，点击 'See' 进入服务器详情页，拉到最底部
+
 Service informationz--------------服务信息
 
 Renew period：Every 4 days-----续期：每4天一次   
