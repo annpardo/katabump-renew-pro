@@ -29,14 +29,14 @@
 
 ### 2. 修改起始续期日期 (修改 `.github/workflows/renew.yml` 文件)
 
-为了让脚本能够精准匹配你的续期周期，请打开 `.github/workflows/renew.yml` 文件，找到 `START_DATE` 变量，将其修改为你明确知道的**下一次可续期日期**：
+为了让脚本能够精准匹配你的续期周期，请打开 `.github/workflows/renew.yml` 文件，找到第19行 `START_DATE` 变量，将其修改为你明确知道的**下一次可续期日期**：
 
 ```yaml
-      - name: 🚀 运行续期脚本
+      - name: 📅 检查是否符合续期规律
+        id: check_date
         env:
-          # ... 其他环境变量
           # 👇 在这里填写你的起始续期日期 (格式：YYYY-MM-DD)
-          START_DATE: '2026-08-11'  # <--- 请务必修改为你自己的续期日
+          START_DATE: '2026-08-11'
 ```
 例如网站续期信息如下：
 
