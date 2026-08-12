@@ -12,34 +12,11 @@ jobs:
       actions: write
       contents: read
     steps:
-      - uses: actions/checkout@v6
-      - name: ⚙ 设置 Python
-        uses: actions/setup-python@v6
-        with:
-          python-version: '3.12'
-          
-      - name: 🛠️ 安装系统依赖和python依赖
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y xvfb x11-utils xdotool scrot fonts-noto-cjk
-          pip install seleniumbase requests
-          seleniumbase install chromedriver
-          
-      - name: ⚙ 设置代理 (sing-box)
-        continue-on-error: true
+      - name: 📅 检查是否符合续期规律
+        id: check_date
         env:
-          NODE_LINK: ${{ secrets.NODE_LINK }}
-        run: |
-          bash <(wget -qO- https://main.ssss.nyc.mn/setup_proxy.sh)
-          
-      - name: 🚀 运行续期脚本
-        env:
-          KATABUMP_EMAIL: ${{ secrets.KATABUMP_EMAIL }}
-          KATABUMP_PASSWORD: ${{ secrets.KATABUMP_PASSWORD }}
-          TG_BOT_TOKEN: ${{ secrets.TG_BOT_TOKEN }}
-          TG_CHAT_ID: ${{ secrets.TG_CHAT_ID }}
           # 👇 在这里填写你的起始续期日期 (格式：YYYY-MM-DD)
-          START_DATE: '2026-08-10' 
+          START_DATE: '2026-08-10'
         run: |
           # 获取当前 UTC 日期
           CURRENT_DATE=$(date -u +%Y-%m-%d)
@@ -50,18 +27,56 @@ jobs:
           CURRENT_TS=$(date -u -d "$CURRENT_DATE" +%s)
           DIFF_DAYS=$(( (CURRENT_TS - START_TS) / 86400 ))
 
-          # 核心判断逻辑
+          # 核心判断逻辑，将结果写入 GITHUB_OUTPUT
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-              echo "检测到手动触发，无视日期规律，强制运行续期任务..."
-              xvfb-run --auto-servernum --server-args="-screen 0 1920x1080x24" python3 app.py
+              echo "检测到手动触发，无视日期规律，强制运行..."
+              echo "should_run=true" >> $GITHUB_OUTPUT
           elif [ $DIFF_DAYS -lt 0 ]; then
               echo "尚未到达设定的起始日期 ($START_DATE)，本次跳过。"
+              echo "should_run=false" >> $GITHUB_OUTPUT
           elif [ $((DIFF_DAYS % 4)) -eq 0 ]; then
-              echo "距离起始日已过 $DIFF_DAYS 天，符合 4 天一续规律！开始执行脚本..."
-              xvfb-run --auto-servernum --server-args="-screen 0 1920x1080x24" python3 app.py
+              echo "距离起始日已过 $DIFF_DAYS 天，符合 4 天一续规律！开始准备执行环境..."
+              echo "should_run=true" >> $GITHUB_OUTPUT
           else
               echo "距离起始日已过 $DIFF_DAYS 天，不符合续期规律，本次安全跳过。"
+              echo "should_run=false" >> $GITHUB_OUTPUT
           fi
+
+      - name: ⬇️ 检出代码
+        if: steps.check_date.outputs.should_run == 'true'
+        uses: actions/checkout@v6
+
+      - name: ⚙ 设置 Python
+        if: steps.check_date.outputs.should_run == 'true'
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+          
+      - name: 🛠️ 安装系统依赖和python依赖
+        if: steps.check_date.outputs.should_run == 'true'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y xvfb x11-utils xdotool scrot fonts-noto-cjk
+          pip install seleniumbase requests
+          seleniumbase install chromedriver
+          
+      - name: ⚙ 设置代理 (sing-box)
+        if: steps.check_date.outputs.should_run == 'true'
+        continue-on-error: true
+        env:
+          NODE_LINK: ${{ secrets.NODE_LINK }}
+        run: |
+          bash <(wget -qO- https://main.ssss.nyc.mn/setup_proxy.sh)
+          
+      - name: 🚀 运行续期脚本
+        if: steps.check_date.outputs.should_run == 'true'
+        env:
+          KATABUMP_EMAIL: ${{ secrets.KATABUMP_EMAIL }}
+          KATABUMP_PASSWORD: ${{ secrets.KATABUMP_PASSWORD }}
+          TG_BOT_TOKEN: ${{ secrets.TG_BOT_TOKEN }}
+          TG_CHAT_ID: ${{ secrets.TG_CHAT_ID }}
+        run: |
+          xvfb-run --auto-servernum --server-args="-screen 0 1920x1080x24" python3 app.py
 
       - name: 🧹 清理旧的工作流运行记录
         if: always()
