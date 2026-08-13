@@ -2,7 +2,7 @@ name: Katabump Auto Renew
 
 on:
   schedule:
-    - cron: '20 0 * * *'  # 改为每天 UTC 0点20 (北京时间 8点20) 唤醒 Actions
+    - cron: '20 0 * * *'  # 每天 UTC 0点20 (北京时间 8点20) 唤醒 Actions
   workflow_dispatch: # 允许手动触发
 
 jobs:
@@ -15,19 +15,16 @@ jobs:
       - name: 📅 检查是否符合续期规律
         id: check_date
         env:
-          # 👇 在这里填写你的起始续期日期 (格式：YYYY-MM-DD)
+          # 👇 保持你自己的起始日期
           START_DATE: '2026-08-10'
         run: |
-          # 获取当前 UTC 日期
           CURRENT_DATE=$(date -u +%Y-%m-%d)
           echo "设定的起始日为: $START_DATE, 今天的 UTC 日期为: $CURRENT_DATE"
 
-          # 转换为时间戳计算相差天数
           START_TS=$(date -u -d "$START_DATE" +%s)
           CURRENT_TS=$(date -u -d "$CURRENT_DATE" +%s)
           DIFF_DAYS=$(( (CURRENT_TS - START_TS) / 86400 ))
 
-          # 核心判断逻辑，将结果写入 GITHUB_OUTPUT
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
               echo "检测到手动触发，无视日期规律，强制运行..."
               echo "should_run=true" >> $GITHUB_OUTPUT
@@ -83,12 +80,13 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          runs=$(gh run list --workflow="${{ github.workflow }}" --limit=100 --json databaseId --jq '.[].databaseId')
+          # 修复点：添加了 --repo "${{ github.repository }}" 明确指定仓库，避免找不到 .git 报错
+          runs=$(gh run list --repo "${{ github.repository }}" --workflow="${{ github.workflow }}" --limit=100 --json databaseId --jq '.[].databaseId')
           count=0
           for run_id in $runs; do
             count=$((count + 1))
             if [ $count -gt 1 ]; then
               echo "删除运行记录: $run_id"
-              gh run delete $run_id || true
+              gh run delete $run_id --repo "${{ github.repository }}" || true
             fi
           done
