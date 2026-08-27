@@ -1,6 +1,6 @@
 # 🚀 Katabump 自动续期脚本 (GitHub Actions)
 
-本项目是根据eooce/katabump-renew进行优化
+本项目是根据eooce/katabump-renew进行优化，已更新到eooce的跟随页面调整的更新
 
 这是一个基于 GitHub Actions 的自动化脚本，用于定时登录并自动续期 [Katabump](https://dashboard.katabump.com/) 应用。
 
